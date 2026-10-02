@@ -3,6 +3,7 @@
 //   reports/week-YYYY-Www.md   weekoverzicht van de laatste volledige week
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { DOCS_DATA_DIR, REPORTS_DIR, CUTOFF_HOUR, DETAIL_PIN } from './lib/config.mjs';
 import { loadStore } from './lib/store.mjs';
 import { encryptWithPin } from './lib/crypto.mjs';
@@ -78,3 +79,16 @@ console.log(`\nRapport: ${path.relative(process.cwd(), reportFile)}`);
 
 // In GitHub Actions: weekoverzicht ook op de samenvattingspagina van de run tonen.
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+
+// Cache-busting: index.html verwijst naar app.js/style.css met een hash van de inhoud,
+// zodat een browser nooit een oude app.js combineert met een nieuwe pagina.
+{
+  const docs = path.dirname(DOCS_DATA_DIR);
+  const indexFile = path.join(docs, 'index.html');
+  let html = fs.readFileSync(indexFile, 'utf8');
+  for (const asset of ['app.js', 'style.css']) {
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(docs, asset))).digest('hex').slice(0, 10);
+    html = html.replace(new RegExp(`${asset.replace('.', '[.]')}[?]v=[0-9a-z]+`), `${asset}?v=${hash}`);
+  }
+  fs.writeFileSync(indexFile, html);
+}
