@@ -15,14 +15,24 @@
       <h1>Oemtata</h1>
       <p class="sub" id="updated">Inkomsten via de betaalterminal</p>
     </div>
-    <button class="btn" id="detailBtn" type="button">
+    <button class="btn ghost" id="lockBtn" type="button" hidden>
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Z"/></svg>
-      <span>Details</span>
+      <span>Vergrendel</span>
     </button>
   </div>
 </header>
 
-<main class="wrap">
+<section class="wrap lock" id="lockScreen">
+  <form class="lock-card" id="pinForm">
+    <h2>Code ingeven</h2>
+    <p class="hint">Deze pagina is beveiligd.</p>
+    <input id="pinInput" type="password" inputmode="numeric" autocomplete="current-password" required aria-label="Code" autofocus>
+    <p class="err" id="pinErr" role="alert"></p>
+    <button class="btn" type="submit" id="pinOk">Open</button>
+  </form>
+</section>
+
+<main class="wrap" id="app" hidden>
   <section class="filters" aria-label="Instellingen">
     <label>Periode
       <select id="preset">
@@ -83,10 +93,9 @@
   </section>
 
   <!-- Beschermd gedeelte -->
-  <section id="detail" hidden>
+  <section id="detail">
     <div class="detail-head">
       <h2>Details</h2>
-      <button class="btn ghost" type="button" id="lockBtn">Vergrendel</button>
     </div>
     <section class="kpis" id="detailKpis"></section>
     <div class="grid2">
@@ -112,18 +121,6 @@
   </section>
 </main>
 
-<dialog id="pinDialog">
-  <form method="dialog" id="pinForm">
-    <h2>Details openen</h2>
-    <p class="hint">Geef de code in.</p>
-    <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" required aria-label="Code">
-    <p class="err" id="pinErr" role="alert"></p>
-    <div class="row end">
-      <button class="btn ghost" type="button" id="pinCancel">Annuleer</button>
-      <button class="btn" type="submit" id="pinOk">Open</button>
-    </div>
-  </form>
-</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="app.js"></script>

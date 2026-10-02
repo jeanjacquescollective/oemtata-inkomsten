@@ -219,40 +219,52 @@
     if (detail) renderDetail(from, to);
   }
 
-  // ---------- detail (beschermd) ----------
+  // ---------- ontgrendelen ----------
+  // Alle gegevens staan versleuteld in data/data.enc.json; zonder de code toont de site niets.
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   async function decrypt(pin) {
-    const enc = await (await fetch('data/detail.enc.json', { cache: 'no-cache' })).json();
+    const res = await fetch('data/data.enc.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('niet geladen');
+    const enc = await res.json();
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
     const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(enc.salt), iterations: enc.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(enc.iv) }, key, b64(enc.data));
     return JSON.parse(new TextDecoder().decode(plain));
   }
 
-  function prepareDetail(raw) {
-    const cutoff = summary.cutoffHour;
-    return raw.tx.map(([ts, cents, fee, bi, cardType, country]) => {
+  function load(raw) {
+    const cutoff = raw.cutoffHour;
+    detail = raw.tx.map(([ts, cents, fee, bi, cardType, country]) => {
       const [d, time] = ts.split('T');
       const hour = +time.slice(0, 2);
       return { ts, day: hour < cutoff ? addDays(d, -1) : d, hour, time: time.slice(0, 5), cents, fee, brand: raw.brands[bi] ?? '?', cardType, country };
     });
+    dayMap.clear();
+    for (const t of detail) {
+      const v = dayMap.get(t.day) ?? { cents: 0, count: 0 };
+      v.cents += t.cents;
+      if (t.cents > 0) v.count += 1;
+      dayMap.set(t.day, v);
+    }
+    summary = { cutoffHour: cutoff, lastTransaction: raw.lastTransaction, days: [...dayMap.keys()].sort().map((d) => [d]) };
   }
 
   async function unlock(pin) {
-    const raw = await decrypt(pin);
-    detail = prepareDetail(raw);
+    load(await decrypt(pin));
     session.set('oemtata-pin', pin);
-    $('detail').hidden = false;
-    $('detailBtn').hidden = true;
+    $('lockScreen').hidden = true;
+    $('app').hidden = false;
+    $('lockBtn').hidden = false;
+    if (summary.lastTransaction) {
+      const [d, t] = summary.lastTransaction.split('T');
+      $('updated').textContent = `Bijgewerkt tot ${be(d)} ${t.slice(0, 5)} · een dag loopt tot ${pad(summary.cutoffHour)}:00 's ochtends`;
+    }
     render();
   }
 
   function lock() {
-    detail = null;
     session.set('oemtata-pin', null);
-    $('detail').hidden = true;
-    $('detailBtn').hidden = false;
-    ['hourChart', 'brandChart'].forEach((id) => { charts[id]?.destroy(); delete charts[id]; });
+    location.reload(); // alles uit het geheugen
   }
 
   let txRows = [];
@@ -355,19 +367,15 @@
     document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => { state.type = b.dataset.type; render(); }));
     $('tableToggle').addEventListener('click', () => { state.table = !state.table; render(); });
 
-    const dlg = $('pinDialog');
-    $('detailBtn').addEventListener('click', () => { $('pinErr').textContent = ''; $('pinInput').value = ''; dlg.showModal(); });
-    $('pinCancel').addEventListener('click', () => dlg.close());
     $('pinForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       $('pinOk').disabled = true;
       $('pinErr').textContent = '';
       try {
         await unlock($('pinInput').value);
-        dlg.close();
-        $('detail').scrollIntoView({ behavior: 'smooth' });
-      } catch {
-        $('pinErr').textContent = 'Verkeerde code.';
+      } catch (err) {
+        $('pinErr').textContent = err.name === 'OperationError' ? 'Verkeerde code.' : 'Gegevens konden niet geladen worden.';
+        $('pinInput').select();
       } finally {
         $('pinOk').disabled = false;
       }
@@ -375,26 +383,14 @@
     $('lockBtn').addEventListener('click', lock);
     $('txDay').addEventListener('change', () => renderTxTable(detail.filter((t) => t.day >= state.from && t.day <= state.to)));
     $('csvBtn').addEventListener('click', downloadCsv);
-    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => detail && render());
   }
 
   // ---------- start ----------
-  async function init() {
+  function init() {
     bind();
-    try {
-      summary = await (await fetch('data/summary.json', { cache: 'no-cache' })).json();
-    } catch {
-      $('updated').textContent = 'Nog geen gegevens beschikbaar.';
-      return;
-    }
-    for (const [d, cents, count] of summary.days) dayMap.set(d, { cents, count });
-    if (summary.lastTransaction) {
-      const [d, t] = summary.lastTransaction.split('T');
-      $('updated').textContent = `Bijgewerkt tot ${be(d)} ${t.slice(0, 5)} · een dag loopt tot ${pad(summary.cutoffHour)}:00 's ochtends`;
-    }
-    render();
     const pin = session.get('oemtata-pin');
-    if (pin) unlock(pin).catch(() => session.set('oemtata-pin', null));
+    if (pin) unlock(pin).catch(() => { session.set('oemtata-pin', null); $('pinInput').focus(); });
   }
 
   if (window.Chart) {

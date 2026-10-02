@@ -58,6 +58,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -122,10 +123,11 @@ tfoot td { font-weight: 650; }
 .row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .row.end { justify-content: flex-end; margin-top: 12px; }
 
-dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); padding: 20px; width: min(340px, calc(100vw - 32px)); }
-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
-dialog h2 { font-size: 17px; margin-bottom: 4px; }
-dialog input { width: 100%; margin-top: 12px; font-size: 18px; letter-spacing: 0.2em; }
+.lock { display: flex; justify-content: center; padding-top: 12vh; padding-bottom: 40px; }
+.lock-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: min(340px, 100%); }
+.lock-card h2 { font-size: 17px; margin-bottom: 4px; }
+.lock-card input { width: 100%; margin-top: 14px; font-size: 18px; letter-spacing: 0.2em; }
+.lock-card .btn { width: 100%; justify-content: center; margin-top: 8px; }
 .err { color: var(--bad); font-size: 13px; min-height: 1.2em; margin: 6px 0 0; }
 
 @media (max-width: 760px) {

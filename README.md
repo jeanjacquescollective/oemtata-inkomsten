@@ -2,8 +2,9 @@
 
 Dag-, week- en maandoverzichten van de betaalterminal (Europabank / eb online).
 
-- **Publiek:** grafieken met omzet en aantal betalingen per dag, week, maand, kwartaal of jaar.
-- **Detailscherm (code):** alle transacties, omzet per uur, kaartmerken, commissie en CSV-download.
+- **Achter een code:** de hele site. Na het ingeven van de code zie je:
+  - grafieken met omzet en aantal betalingen per dag, week, maand, kwartaal of jaar;
+  - alle transacties, omzet per uur, kaartmerken, commissie en een CSV-download.
 - **Cafédag:** een dag loopt tot 06:00 de volgende ochtend (instelbaar via `DAY_CUTOFF_HOUR`).
 
 ## Hoe het werkt
@@ -16,7 +17,7 @@ Elke maandag doet een **GitHub Action** ([.github/workflows/weekly.yml](.github/
 
 1. inloggen op eb online en de nieuwe transacties als CSV downloaden;
 2. ze samenvoegen met de bestaande lijst in `store/transactions.enc.json`. Dubbels worden weggefilterd. De lijst staat versleuteld met `STORE_KEY` in de repository, zodat de Action er elke week op kan verderbouwen;
-3. de site-data bouwen: `docs/data/summary.json` (publiek) en `docs/data/detail.enc.json` (versleuteld met de PIN);
+3. de site-data bouwen: `docs/data/data.enc.json`, volledig versleuteld met de PIN;
 4. alles committen en de site publiceren op GitHub Pages.
 
 Het weekoverzicht staat op de samenvattingspagina van elke run (tabblad *Actions*).
@@ -48,10 +49,10 @@ Doe eerst `git pull`, want de Action commit elke week nieuwe data.
 `npm run fetch -- --from 2025-08-01 --to 2025-12-31` haalt een eigen periode op, en met
 `--headed` zie je de browser.
 
-## Over de beveiliging van het detailscherm
+## Over de beveiliging
 
-De transacties staan versleuteld (AES-GCM, sleutel afgeleid van de PIN) in `detail.enc.json`.
-Zonder de code is de lijst dus niet te lezen. Een code van vier cijfers kan iemand met wat
+Alle gegevens van de site staan versleuteld (AES-GCM, sleutel afgeleid van de PIN) in `data.enc.json`.
+Zonder de code is er dus niets te zien. Een code van vier cijfers kan iemand met wat
 technische kennis wel uitproberen tot hij past (er zijn maar 10.000 mogelijkheden).
 Dit is een deur die dicht is, geen kluis. Wil je meer zekerheid, gebruik dan een langere code of zin in
 `DETAIL_PIN` en draai `npm run build` opnieuw. Kaartnummers en autorisatiecodes zitten er

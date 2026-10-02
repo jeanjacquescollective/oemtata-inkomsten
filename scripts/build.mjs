@@ -1,6 +1,5 @@
 // Maakt uit de (versleutelde) transactielijst in store/:
-//   docs/data/summary.json     publiek: totaal en aantal per cafédag
-//   docs/data/detail.enc.json  versleuteld met DETAIL_PIN: alle transacties
+//   docs/data/data.enc.json    alles wat de site toont, versleuteld met DETAIL_PIN
 //   reports/week-YYYY-Www.md   weekoverzicht van de laatste volledige week
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +16,7 @@ if (!DETAIL_PIN) {
 const { transactions } = loadStore();
 const ok = transactions.filter((t) => t.ok);
 
-// ---- publieke samenvatting ----
+// ---- totalen per cafédag (voor het weekrapport) ----
 const days = new Map();
 for (const t of ok) {
   const d = days.get(t.day) ?? { cents: 0, count: 0 };
@@ -25,25 +24,21 @@ for (const t of ok) {
   if (t.cents > 0) d.count += 1;
   days.set(t.day, d);
 }
-const summary = {
+// ---- site-data, volledig versleuteld (te ontcijferen met WebCrypto in de browser) ----
+const brands = [...new Set(ok.map((t) => t.brand))];
+const siteData = {
   generated: new Date().toISOString(),
   cutoffHour: CUTOFF_HOUR,
   lastTransaction: ok.at(-1)?.ts ?? null,
-  // [cafédag, bedrag in cent, aantal betalingen]
-  days: [...days].sort(([a], [b]) => a.localeCompare(b)).map(([day, d]) => [day, d.cents, d.count]),
-};
-
-// ---- versleutelde details (te ontcijferen met WebCrypto in de browser) ----
-const brands = [...new Set(ok.map((t) => t.brand))];
-const detail = {
   brands,
   // [tijdstip, bedrag cent, commissie cent, merk-index, kaarttype, land]
   tx: ok.map((t) => [t.ts, t.cents, t.fee, brands.indexOf(t.brand), t.cardType, t.country]),
 };
 
 fs.mkdirSync(DOCS_DATA_DIR, { recursive: true });
-fs.writeFileSync(path.join(DOCS_DATA_DIR, 'summary.json'), JSON.stringify(summary));
-fs.writeFileSync(path.join(DOCS_DATA_DIR, 'detail.enc.json'), JSON.stringify(encryptWithPin(detail, DETAIL_PIN)));
+fs.writeFileSync(path.join(DOCS_DATA_DIR, 'data.enc.json'), JSON.stringify(encryptWithPin(siteData, DETAIL_PIN)));
+// oude, deels onversleutelde bestanden opruimen
+for (const old of ['summary.json', 'detail.enc.json']) fs.rmSync(path.join(DOCS_DATA_DIR, old), { force: true });
 
 // ---- weekrapport (laatste volledige week, ma t.e.m. zo) ----
 const euro = (c) => '€ ' + (c / 100).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -77,7 +72,7 @@ fs.mkdirSync(REPORTS_DIR, { recursive: true });
 const reportFile = path.join(REPORTS_DIR, `week-${year}-W${pad(week)}.md`);
 fs.writeFileSync(reportFile, lines.join('\n') + '\n');
 
-console.log(`${summary.days.length} cafédagen, ${ok.length} betalingen. Site-data bijgewerkt in docs/data/.`);
+console.log(`${days.size} cafédagen, ${ok.length} betalingen. Site-data bijgewerkt in docs/data/.`);
 console.log('\n' + lines.join('\n'));
 console.log(`\nRapport: ${path.relative(process.cwd(), reportFile)}`);
 
