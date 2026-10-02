@@ -57,7 +57,7 @@ de Windows Taakplanner te zetten:
 schtasks /Create /TN "Oemtata inkomsten" /SC WEEKLY /D MON /ST 12:00 /TR "\"%CD%\weekly.cmd\""
 ```
 
-De pc moet op dat moment aanstaan. Een gemiste taak kun je ook later handmatig starten.
+Stond de pc uit, dan start de taak automatisch zodra hij weer aanstaat.
 De uitvoer komt in `reports/weekly.log`.
 
 ## Over de beveiliging van het detailscherm
