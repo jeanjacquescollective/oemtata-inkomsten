@@ -1,11 +1,12 @@
-// Maakt uit data/transactions.json:
+// Maakt uit de (versleutelde) transactielijst in store/:
 //   docs/data/summary.json     publiek: totaal en aantal per cafédag
 //   docs/data/detail.enc.json  versleuteld met DETAIL_PIN: alle transacties
 //   reports/week-YYYY-Www.md   weekoverzicht van de laatste volledige week
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
-import { STORE_FILE, DOCS_DATA_DIR, REPORTS_DIR, CUTOFF_HOUR, DETAIL_PIN } from './lib/config.mjs';
+import { DOCS_DATA_DIR, REPORTS_DIR, CUTOFF_HOUR, DETAIL_PIN } from './lib/config.mjs';
+import { loadStore } from './lib/store.mjs';
+import { encryptWithPin } from './lib/crypto.mjs';
 import { addDays, weekStart, isoWeek, todayLocal, toBe, pad } from './lib/dates.mjs';
 
 if (!DETAIL_PIN) {
@@ -13,7 +14,7 @@ if (!DETAIL_PIN) {
   process.exit(1);
 }
 
-const { transactions } = JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
+const { transactions } = loadStore();
 const ok = transactions.filter((t) => t.ok);
 
 // ---- publieke samenvatting ----
@@ -32,18 +33,7 @@ const summary = {
   days: [...days].sort(([a], [b]) => a.localeCompare(b)).map(([day, d]) => [day, d.cents, d.count]),
 };
 
-// ---- versleutelde details ----
-// PBKDF2 + AES-GCM, te ontcijferen met WebCrypto in de browser.
-function encrypt(obj, pin) {
-  const iter = 250_000;
-  const salt = crypto.randomBytes(16);
-  const iv = crypto.randomBytes(12);
-  const key = crypto.pbkdf2Sync(pin, salt, iter, 32, 'sha256');
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const data = Buffer.concat([cipher.update(JSON.stringify(obj), 'utf8'), cipher.final(), cipher.getAuthTag()]);
-  return { v: 1, iter, salt: salt.toString('base64'), iv: iv.toString('base64'), data: data.toString('base64') };
-}
-
+// ---- versleutelde details (te ontcijferen met WebCrypto in de browser) ----
 const brands = [...new Set(ok.map((t) => t.brand))];
 const detail = {
   brands,
@@ -53,7 +43,7 @@ const detail = {
 
 fs.mkdirSync(DOCS_DATA_DIR, { recursive: true });
 fs.writeFileSync(path.join(DOCS_DATA_DIR, 'summary.json'), JSON.stringify(summary));
-fs.writeFileSync(path.join(DOCS_DATA_DIR, 'detail.enc.json'), JSON.stringify(encrypt(detail, DETAIL_PIN)));
+fs.writeFileSync(path.join(DOCS_DATA_DIR, 'detail.enc.json'), JSON.stringify(encryptWithPin(detail, DETAIL_PIN)));
 
 // ---- weekrapport (laatste volledige week, ma t.e.m. zo) ----
 const euro = (c) => '€ ' + (c / 100).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -90,3 +80,6 @@ fs.writeFileSync(reportFile, lines.join('\n') + '\n');
 console.log(`${summary.days.length} cafédagen, ${ok.length} betalingen. Site-data bijgewerkt in docs/data/.`);
 console.log('\n' + lines.join('\n'));
 console.log(`\nRapport: ${path.relative(process.cwd(), reportFile)}`);
+
+// In GitHub Actions: weekoverzicht ook op de samenvattingspagina van de run tonen.
+if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');

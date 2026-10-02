@@ -9,7 +9,6 @@
     "import": "node --env-file-if-exists=.env scripts/import.mjs",
     "build": "node --env-file-if-exists=.env scripts/build.mjs",
     "weekly": "node --env-file-if-exists=.env scripts/fetch.mjs && node --env-file-if-exists=.env scripts/import.mjs && node --env-file-if-exists=.env scripts/build.mjs",
-    "publish": "node --env-file-if-exists=.env scripts/publish.mjs",
     "serve": "node scripts/serve.mjs"
   },
   "dependencies": {

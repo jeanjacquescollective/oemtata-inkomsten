@@ -8,6 +8,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 import { IMPORT_DIR, STORE_FILE, MERCHANT_URL, CUTOFF_HOUR } from './lib/config.mjs';
+import { loadStore } from './lib/store.mjs';
 import { addDays, todayLocal, toBe, parseIso } from './lib/dates.mjs';
 
 const { values: args } = parseArgs({
@@ -26,7 +27,7 @@ if (!EB_USERNAME || !EB_PASSWORD) {
 
 function defaultFrom() {
   if (fs.existsSync(STORE_FILE)) {
-    const store = JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
+    const store = loadStore();
     const last = store.transactions.at(-1)?.day;
     // een paar dagen overlap: dubbels worden bij het importeren weggefilterd
     if (last) return addDays(last, -3);

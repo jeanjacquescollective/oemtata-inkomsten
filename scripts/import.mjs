@@ -2,12 +2,13 @@
 // Overlappende exports zijn geen probleem: dubbels worden herkend.
 import fs from 'node:fs';
 import path from 'node:path';
-import { IMPORT_DIR, DATA_DIR, STORE_FILE, CUTOFF_HOUR } from './lib/config.mjs';
+import { IMPORT_DIR, CUTOFF_HOUR } from './lib/config.mjs';
+import { loadStore, saveStore } from './lib/store.mjs';
 import { parseEbOnlineCsv, txKey } from './lib/parse.mjs';
 import { businessDay } from './lib/dates.mjs';
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-const store = fs.existsSync(STORE_FILE) ? JSON.parse(fs.readFileSync(STORE_FILE, 'utf8')) : { transactions: [] };
+
+const store = loadStore();
 
 // Telling per sleutel: twee identieke betalingen in dezelfde seconde blijven
 // er twee, zolang ze in eenzelfde export ook twee keer voorkomen.
@@ -37,6 +38,6 @@ const transactions = [];
 for (const [k, n] of counts) for (let i = 0; i < n; i++) transactions.push(byKey.get(k));
 transactions.sort((a, b) => a.ts.localeCompare(b.ts));
 
-fs.writeFileSync(STORE_FILE, JSON.stringify({ updated: new Date().toISOString(), transactions }));
+saveStore({ updated: new Date().toISOString(), transactions });
 console.log(`${files.length} bestand(en) gelezen. ${transactions.length} transacties (${transactions.length - before >= 0 ? '+' : ''}${transactions.length - before} nieuw).`);
 console.log(`Periode: ${transactions[0]?.day ?? '-'} t.e.m. ${transactions.at(-1)?.day ?? '-'}`);

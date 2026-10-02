@@ -12,56 +12,41 @@ Europabank heeft geen gratis API voor handelaars. Het script `fetch` logt daarom
 op eb online met gebruikersnaam en paswoord en gebruikt dezelfde knop
 "Geavanceerd zoeken en exporteren → Excel" die je zelf zou gebruiken. Het resultaat is een CSV-bestand.
 
+Elke maandag doet een **GitHub Action** ([.github/workflows/weekly.yml](.github/workflows/weekly.yml)) dit:
+
+1. inloggen op eb online en de nieuwe transacties als CSV downloaden;
+2. ze samenvoegen met de bestaande lijst in `store/transactions.enc.json`. Dubbels worden weggefilterd. De lijst staat versleuteld met `STORE_KEY` in de repository, zodat de Action er elke week op kan verderbouwen;
+3. de site-data bouwen: `docs/data/summary.json` (publiek) en `docs/data/detail.enc.json` (versleuteld met de PIN);
+4. alles committen en de site publiceren op GitHub Pages.
+
+Het weekoverzicht staat op de samenvattingspagina van elke run (tabblad *Actions*).
+De Action draait maandag rond 12:00. GitHub kan geplande runs soms wat later starten.
+Handmatig starten gaat via *Actions → Wekelijks bijwerken → Run workflow*.
+
+## Instellen op GitHub (eenmalig)
+
+1. *Settings → Secrets and variables → Actions → New repository secret*. Maak er vier aan,
+   met dezelfde waarden als in je lokale `.env`:
+   - `EB_USERNAME`
+   - `EB_PASSWORD`
+   - `DETAIL_PIN`
+   - `STORE_KEY` (zonder deze sleutel is `store/` niet te openen, dus bewaar hem ook ergens veilig)
+2. *Settings → Pages → Source*: kies **GitHub Actions**.
+3. *Actions → Wekelijks bijwerken → Run workflow* om te testen.
+
+De site staat op https://jeanjacquescollective.github.io/oemtata-inkomsten/.
+
+## Lokaal werken
+
 ```
-npm run fetch    eb online → import/*.csv
-npm run import   import/*.csv → data/transactions.json   (dubbels worden weggefilterd)
-npm run build    → docs/data/summary.json (publiek) + docs/data/detail.enc.json (versleuteld)
-                 → reports/week-JJJJ-Wnn.md (weekoverzicht van de afgelopen week)
-npm run weekly   de drie stappen hierboven na elkaar
-npm run publish  commit + push van docs/ naar GitHub
-npm run serve    lokale preview op http://localhost:8080
-```
-
-`fetch` haalt standaard alles op vanaf drie dagen voor de laatste gekende dag. Een andere
-periode kan met `npm run fetch -- --from 2025-08-01 --to 2025-12-31`, en met `--headed`
-zie je de browser.
-
-## Installatie
-
-1. `npm install`
-2. Kopieer `.env.example` naar `.env` en vul de logingegevens in.
-3. `npm run weekly`, daarna `npm run serve` om het resultaat te bekijken.
-
-## Online zetten (GitHub Pages, gratis)
-
-1. Maak een **nieuwe repository** op GitHub, bijvoorbeeld `oemtata-inkomsten`.
-2. In deze map:
-   ```
-   git init -b main
-   git add .
-   git commit -m "Eerste versie"
-   git remote add origin https://github.com/<gebruiker>/oemtata-inkomsten.git
-   git push -u origin main
-   ```
-3. Ga op GitHub naar *Settings → Pages* en kies *Deploy from a branch*, met branch `main` en map `/docs`.
-4. De site staat dan op `https://<gebruiker>.github.io/oemtata-inkomsten/`.
-
-`.env`, `data/`, `import/` en `reports/` worden nooit gecommit (zie `.gitignore`).
-
-## Elke maandag automatisch
-
-`weekly.cmd` haalt de data op, bouwt de site en publiceert die. Om dit elke maandag om 12:00 in
-de Windows Taakplanner te zetten:
-
-```powershell
-$a = New-ScheduledTaskAction -Execute "$PWD\weekly.cmd" -WorkingDirectory "$PWD"
-$t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 12:00
-$s = New-ScheduledTaskSettingsSet -StartWhenAvailable
-Register-ScheduledTask -TaskName "Oemtata inkomsten" -Action $a -Trigger $t -Settings $s
+npm install
+npm run weekly   ophalen + verwerken + bouwen (gebruikt .env, zie .env.example)
+npm run serve    preview op http://localhost:8080
 ```
 
-Stond de pc uit, dan start de taak automatisch zodra hij weer aanstaat.
-De uitvoer komt in `reports/weekly.log`.
+Doe eerst `git pull`, want de Action commit elke week nieuwe data.
+`npm run fetch -- --from 2025-08-01 --to 2025-12-31` haalt een eigen periode op, en met
+`--headed` zie je de browser.
 
 ## Over de beveiliging van het detailscherm
 
@@ -75,6 +60,7 @@ nooit in.
 ## Als het ophalen faalt
 
 Als Europabank de website aanpast, kan `fetch` stoppen met werken. Je krijgt dan een
-foutmelding en een screenshot in `import/fout.png`. Als noodoplossing kun je de export
+rode run in het tabblad *Actions* (en een mail van GitHub). De run bevat een screenshot
+van waar het vastliep (artifact "fout"). Als noodoplossing kun je de export
 handmatig downloaden (Bewegingen → Geavanceerd zoeken en exporteren → Excel), het
-bestand in `import/` zetten en `npm run import && npm run build` draaien.
+bestand in `import/` zetten en `npm run import && npm run build` draaien, en daarna `store/` en `docs/data/` committen en pushen.
