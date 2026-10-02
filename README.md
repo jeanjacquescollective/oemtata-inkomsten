@@ -53,8 +53,11 @@ zie je de browser.
 `weekly.cmd` haalt de data op, bouwt de site en publiceert die. Om dit elke maandag om 12:00 in
 de Windows Taakplanner te zetten:
 
-```
-schtasks /Create /TN "Oemtata inkomsten" /SC WEEKLY /D MON /ST 12:00 /TR "\"%CD%\weekly.cmd\""
+```powershell
+$a = New-ScheduledTaskAction -Execute "$PWD\weekly.cmd" -WorkingDirectory "$PWD"
+$t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 12:00
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable
+Register-ScheduledTask -TaskName "Oemtata inkomsten" -Action $a -Trigger $t -Settings $s
 ```
 
 Stond de pc uit, dan start de taak automatisch zodra hij weer aanstaat.
